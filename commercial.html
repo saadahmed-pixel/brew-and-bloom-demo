@@ -1,0 +1,1271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Brew &amp; Bloom — Commercial</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #241a12;
+        --accent: #7b4a2a;
+        --accent-dark: #5c351e;
+        --cream: #fffaf2;
+        --gold: #d9a46a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(1200px 700px at 50% -10%, #2c1d12, #140d08 60%);
+        color: var(--cream);
+        font-family: "Inter", system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 28px 20px 40px;
+      }
+      h1 { font-family: "Playfair Display", Georgia, serif; font-weight: 600; font-size: 20px; margin: 0; letter-spacing: 0.01em; }
+      .sub { color: #b9a894; font-size: 13px; margin-top: 4px; }
+      .stage {
+        position: relative;
+        width: min(1120px, 100%);
+        aspect-ratio: 16 / 9;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06);
+        background: #000;
+      }
+      canvas { display: block; width: 100%; height: 100%; }
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(12, 8, 5, 0.72);
+        backdrop-filter: blur(6px);
+        text-align: center;
+        padding: 24px;
+        transition: opacity 0.35s ease;
+      }
+      .overlay.hidden { opacity: 0; pointer-events: none; }
+      .overlay h2 { font-family: "Playfair Display", Georgia, serif; font-size: clamp(22px, 3.4vw, 34px); margin: 0 0 8px; }
+      .overlay p { color: #cbb9a4; margin: 0 0 20px; font-size: 14px; max-width: 46ch; }
+      .overlay .spin {
+        width: 34px; height: 34px; margin: 0 auto 14px;
+        border: 3px solid rgba(255, 255, 255, 0.18); border-top-color: var(--gold);
+        border-radius: 50%; animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+      button {
+        font-family: inherit; font-size: 13px; font-weight: 600;
+        color: var(--cream); background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        padding: 10px 16px; border-radius: 999px; cursor: pointer;
+        transition: background 0.15s, transform 0.1s;
+      }
+      button:hover { background: rgba(255, 255, 255, 0.16); }
+      button:active { transform: translateY(1px); }
+      button.primary { background: var(--accent); border-color: transparent; }
+      button.primary:hover { background: var(--accent-dark); }
+      button:disabled { opacity: 0.45; cursor: not-allowed; }
+      .status { color: #b9a894; font-size: 12.5px; min-height: 18px; }
+      kbd { background: rgba(255,255,255,0.1); border-radius: 4px; padding: 1px 5px; font-size: 11px; }
+    </style>
+  </head>
+  <body>
+    <h1>Brew &amp; Bloom — Commercial</h1>
+    <div class="sub">1280 × 720 · ~37 s · plays here, exports to .webm</div>
+
+    <div class="stage">
+      <canvas id="cv" width="1280" height="720"></canvas>
+
+      <div class="overlay" id="loader">
+        <div>
+          <div class="spin"></div>
+          <p>Loading coffee…</p>
+        </div>
+      </div>
+
+      <div class="overlay hidden" id="startCard">
+        <div>
+          <h2>Brew &amp; Bloom</h2>
+          <p>A 37-second commercial for the new demo site. Press play — sound on for the full experience.</p>
+          <button class="primary" id="startBtn">▶ Play commercial</button>
+        </div>
+      </div>
+
+      <div class="overlay hidden" id="exportCard">
+        <div>
+          <h2 id="exportTitle">Exporting…</h2>
+          <p id="exportMsg">Recording the commercial in real time. Keep this tab visible.</p>
+          <div class="spin"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="playBtn">▶ Play</button>
+      <button id="replayBtn">↺ Replay</button>
+      <button id="muteBtn">🔊 Sound on</button>
+      <button class="primary" id="exportBtn">⬇ Export video</button>
+    </div>
+    <div class="status" id="status">Ready.</div>
+    <div class="status"><kbd>Space</kbd> play/pause · <kbd>R</kbd> replay · <kbd>M</kbd> mute · <kbd>E</kbd> export</div>
+
+    <script>
+      "use strict";
+
+      // ---------------------------------------------------------------- setup
+      const W = 1280;
+      const H = 720;
+      const canvas = document.getElementById("cv");
+      const ctx = canvas.getContext("2d");
+      const offA = document.createElement("canvas");
+      const offB = document.createElement("canvas");
+      offA.width = offB.width = W;
+      offA.height = offB.height = H;
+      const ctxA = offA.getContext("2d");
+      const ctxB = offB.getContext("2d");
+
+      const FONT = {
+        disp: "'Playfair Display', Georgia, 'Times New Roman', serif",
+        body: "'Inter', system-ui, -apple-system, Segoe UI, sans-serif",
+      };
+
+      const C = {
+        bg: "#faf6ef",
+        bgSoft: "#f2ebdf",
+        ink: "#241a12",
+        inkSoft: "#6b5a4c",
+        accent: "#7b4a2a",
+        accentDark: "#5c351e",
+        accentLight: "#a9714a",
+        cream: "#fffaf2",
+        gold: "#d9a46a",
+        line: "#e5d9c8",
+      };
+
+      // ------------------------------------------------------------- helpers
+      const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+      const easeOutCubic = (t) => 1 - Math.pow(1 - clamp(t), 3);
+      const easeInOutCubic = (t) => {
+        t = clamp(t);
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      };
+      const easeOutBack = (t) => {
+        t = clamp(t);
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+      };
+      const fadeUp = (p, start, dur) => clamp((p - start) / dur);
+
+      function roundRectPath(c, x, y, w, h, r) {
+        r = Math.min(r, w / 2, h / 2);
+        c.beginPath();
+        c.moveTo(x + r, y);
+        c.arcTo(x + w, y, x + w, y + h, r);
+        c.arcTo(x + w, y + h, x, y + h, r);
+        c.arcTo(x, y + h, x, y, r);
+        c.arcTo(x, y, x + w, y, r);
+        c.closePath();
+      }
+
+      function text(c, str, x, y, o = {}) {
+        c.save();
+        c.globalAlpha = o.alpha == null ? 1 : o.alpha;
+        c.font = `${o.italic ? "italic " : ""}${o.weight || 400} ${o.size || 20}px ${o.family || FONT.body}`;
+        c.fillStyle = o.color || C.ink;
+        c.textAlign = o.align || "left";
+        c.textBaseline = o.baseline || "alphabetic";
+        if ("letterSpacing" in c) c.letterSpacing = (o.spacing || 0) + "px";
+        c.fillText(str, x, y);
+        c.restore();
+      }
+
+      function drawSegs(c, segs, x, y, o = {}) {
+        const size = o.size || 20;
+        c.save();
+        c.textAlign = "left";
+        c.textBaseline = o.baseline || "alphabetic";
+        if ("letterSpacing" in c) c.letterSpacing = (o.spacing || 0) + "px";
+        let cx = x;
+        for (const s of segs) {
+          c.font = `${s.italic ? "italic " : ""}${s.weight || o.weight || 400} ${size}px ${s.family || o.family || FONT.body}`;
+          c.fillStyle = s.color || o.color || C.ink;
+          c.fillText(s.t, cx, y);
+          cx += c.measureText(s.t).width;
+        }
+        c.restore();
+        return cx - x;
+      }
+
+      function segsWidth(segs, o = {}) {
+        const m = document.createElement("canvas").getContext("2d");
+        const size = o.size || 20;
+        let w = 0;
+        for (const s of segs) {
+          m.font = `${s.italic ? "italic " : ""}${s.weight || o.weight || 400} ${size}px ${s.family || o.family || FONT.body}`;
+          w += m.measureText(s.t).width;
+        }
+        return w;
+      }
+
+      function coverRect(crop, dw, dh) {
+        const r = crop.w / crop.h;
+        const tr = dw / dh;
+        if (r > tr) {
+          const sh = crop.h;
+          const sw = sh * tr;
+          return { sx: crop.x + (crop.w - sw) / 2, sy: crop.y, sw, sh };
+        }
+        const sw = crop.w;
+        const sh = sw / tr;
+        return { sx: crop.x, sy: crop.y + (crop.h - sh) / 2, sw, sh };
+      }
+
+      function drawCrop(c, crop, dx, dy, dw, dh, scale = 1, ox = 0, oy = 0) {
+        const img = IMG[crop.img];
+        if (!img) return;
+        const q = coverRect(crop, dw, dh);
+        const sw = q.sw / scale;
+        const sh = q.sh / scale;
+        const sx = q.sx + (q.sw - sw) / 2 + ox * sw;
+        const sy = q.sy + (q.sh - sh) / 2 + oy * sh;
+        c.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+      }
+
+      function photoFrame(c, crop, x, y, w, h, o = {}) {
+        const r = o.radius == null ? 22 : o.radius;
+        c.save();
+        roundRectPath(c, x, y, w, h, r);
+        c.fillStyle = "#efe4d3";
+        c.shadowColor = "rgba(24, 14, 6, 0.4)";
+        c.shadowBlur = o.blur == null ? 44 : o.blur;
+        c.shadowOffsetY = o.shadowY == null ? 20 : o.shadowY;
+        c.fill();
+        c.restore();
+
+        c.save();
+        roundRectPath(c, x, y, w, h, r);
+        c.clip();
+        drawCrop(c, crop, x, y, w, h, o.scale || 1, o.ox || 0, o.oy || 0);
+        const g = c.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, "rgba(0,0,0,0)");
+        g.addColorStop(1, "rgba(20,10,4,0.18)");
+        c.fillStyle = g;
+        c.fillRect(x, y, w, h);
+        c.restore();
+
+        c.save();
+        roundRectPath(c, x + 0.75, y + 0.75, w - 1.5, h - 1.5, r);
+        c.strokeStyle = "rgba(255,255,255,0.4)";
+        c.lineWidth = 1.5;
+        c.stroke();
+        c.restore();
+      }
+
+      function pill(c, cx, y, label, o = {}) {
+        const size = o.size || 15;
+        const padX = o.padX == null ? 20 : o.padX;
+        const h = o.h || 46;
+        c.save();
+        c.font = `${o.weight || 600} ${size}px ${FONT.body}`;
+        const w = c.measureText(label).width + padX * 2 + (o.right ? c.measureText(o.right).width + 18 : 0);
+        const x = cx - w / 2;
+        roundRectPath(c, x, y, w, h, h / 2);
+        c.fillStyle = o.bg || C.accent;
+        c.fill();
+        if (o.border) { c.strokeStyle = o.border; c.lineWidth = 1.5; c.stroke(); }
+        c.textAlign = "left";
+        c.textBaseline = "middle";
+        c.fillStyle = o.color || C.cream;
+        c.fillText(label, x + padX, y + h / 2 + 0.5);
+        if (o.right) {
+          c.fillStyle = o.rightColor || C.gold;
+          c.fillText(o.right, x + padX + c.measureText(label).width + 16, y + h / 2 + 0.5);
+        }
+        c.restore();
+        return w;
+      }
+
+      function drawLogoMark(c, cx, cy, r, alpha = 1) {
+        c.save();
+        c.globalAlpha = alpha;
+        const g = c.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
+        g.addColorStop(0, C.accentLight);
+        g.addColorStop(1, C.accentDark);
+        c.beginPath();
+        c.arc(cx, cy, r, 0, Math.PI * 2);
+        c.fillStyle = g;
+        c.fill();
+        c.lineWidth = Math.max(1.5, r * 0.05);
+        c.strokeStyle = "rgba(255,255,255,0.35)";
+        c.stroke();
+        c.font = `${r * 0.95}px ${FONT.body}`;
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.fillText("☕", cx, cy + r * 0.06);
+        c.restore();
+      }
+
+      function drawSteam(c, cx, cy, t, alpha) {
+        c.save();
+        c.strokeStyle = C.accentLight;
+        c.lineCap = "round";
+        for (let i = -1; i <= 1; i++) {
+          const x = cx + i * 11;
+          const h = 24 + Math.abs(i) * 4;
+          c.lineWidth = 3;
+          c.globalAlpha = alpha * (0.35 + 0.4 * (0.5 + 0.5 * Math.sin(t * 2.2 + i * 1.3)));
+          c.beginPath();
+          for (let k = 0; k <= 12; k++) {
+            const yy = cy - (k / 12) * h;
+            const xx = x + Math.sin(t * 2.4 + k * 0.5 + i) * 5 * (k / 12);
+            if (k === 0) c.moveTo(xx, yy);
+            else c.lineTo(xx, yy);
+          }
+          c.stroke();
+        }
+        c.restore();
+      }
+
+      // ------------------------------------------------------------- images
+      const IMG = {};
+      const SOURCES = {
+        home: "assets/video/home.png",
+        why: "assets/video/why.png",
+        story: "assets/video/story.png",
+        menu: "assets/video/menu.png",
+        saad: "assets/video/saad-ahmed-khan.jpg",
+        soon: "assets/video/coming-soon.jpg",
+      };
+
+      // crops are in device pixels of the 1176px-wide captures
+      const CROPS = {
+        hero: { img: "home", x: 235, y: 235, w: 680, h: 480 },
+        why: { img: "why", x: 36, y: 674, w: 720, h: 540 },
+        story: { img: "story", x: 36, y: 863, w: 720, h: 960 },
+        menu: { img: "menu", x: 20, y: 960, w: 1136, h: 1005 },
+        offer: { img: "home", x: 36, y: 4536, w: 1105, h: 473 },
+        saad: { img: "saad", x: 220, y: 340, w: 584, h: 344 },
+        soon: { img: "soon", x: 0, y: 0, w: 2048, h: 2048 },
+      };
+
+      function loadImages() {
+        return Promise.all(
+          Object.entries(SOURCES).map(
+            ([k, src]) =>
+              new Promise((res, rej) => {
+                const im = new Image();
+                im.onload = () => {
+                  IMG[k] = im;
+                  res();
+                };
+                im.onerror = () => rej(new Error("failed: " + src));
+                im.src = src;
+              })
+          )
+        );
+      }
+
+      // -------------------------------------------------------------- scenes
+      const SCENES = [
+        { name: "intro", t0: 0.0, t1: 3.2, draw: sceneIntro },
+        { name: "hero", t0: 3.2, t1: 8.4, draw: sceneHero },
+        { name: "why", t0: 8.4, t1: 13.6, draw: sceneWhy },
+        { name: "menu", t0: 13.6, t1: 18.8, draw: sceneMenu },
+        { name: "story", t0: 18.8, t1: 23.8, draw: sceneStory },
+        { name: "proof", t0: 23.8, t1: 26.8, draw: sceneProof },
+        { name: "offer", t0: 26.8, t1: 30.0, draw: sceneOffer },
+        { name: "credit", t0: 30.0, t1: 33.2, draw: sceneCredit },
+        { name: "soon", t0: 33.2, t1: 36.8, draw: sceneSoon },
+      ];
+      const DURATION = 36.8;
+      const FADE = 0.45;
+
+      function sceneIndexAt(t) {
+        for (let i = 0; i < SCENES.length; i++) if (t < SCENES[i].t1) return i;
+        return SCENES.length - 1;
+      }
+
+      // -- 1. intro
+      function sceneIntro(c, p, t) {
+        c.fillStyle = C.ink;
+        c.fillRect(0, 0, W, H);
+        const g = c.createRadialGradient(W / 2, H * 0.42, 40, W / 2, H * 0.42, 640);
+        g.addColorStop(0, "rgba(169,113,74,0.55)");
+        g.addColorStop(0.55, "rgba(92,53,30,0.3)");
+        g.addColorStop(1, "rgba(36,26,18,0)");
+        c.fillStyle = g;
+        c.fillRect(0, 0, W, H);
+
+        // drifting particles
+        c.save();
+        for (let i = 0; i < 26; i++) {
+          const seed = i * 97.13;
+          const x = (Math.sin(seed) * 0.5 + 0.5) * W;
+          const y = ((Math.cos(seed * 1.7) * 0.5 + 0.5) * H + t * (8 + (i % 5) * 5)) % H;
+          c.globalAlpha = 0.05 + 0.06 * (0.5 + 0.5 * Math.sin(t * 1.4 + i));
+          c.fillStyle = C.gold;
+          c.beginPath();
+          c.arc(x, y, 1.2 + (i % 3) * 0.7, 0, Math.PI * 2);
+          c.fill();
+        }
+        c.restore();
+
+        const cx = W / 2;
+        const lp = easeOutBack(clamp(p / 0.26));
+        drawSteam(c, cx, H * 0.4 - 52 * lp, t, fadeUp(p, 0.12, 0.25));
+        drawLogoMark(c, cx, H * 0.4, 62 * lp, fadeUp(p, 0.02, 0.2));
+
+        const wp = fadeUp(p, 0.2, 0.32);
+        text(c, "Brew & Bloom", cx, H * 0.63, {
+          size: 68, family: FONT.disp, weight: 700, color: C.cream, align: "center", alpha: wp,
+        });
+        const lw = easeOutCubic(fadeUp(p, 0.34, 0.3)) * 160;
+        c.fillStyle = C.gold;
+        c.fillRect(cx - lw / 2, H * 0.665, lw, 2);
+
+        const tp = fadeUp(p, 0.46, 0.3);
+        text(c, "SPECIALTY COFFEE  ·  ROASTED WITH CARE", cx, H * 0.735, {
+          size: 15, weight: 600, color: C.gold, align: "center", spacing: 5, alpha: tp,
+        });
+      }
+
+      // -- 2. hero
+      function sceneHero(c, p, t) {
+        c.fillStyle = C.bg;
+        c.fillRect(0, 0, W, H);
+        const g = c.createRadialGradient(W * 0.82, H * 0.12, 20, W * 0.82, H * 0.12, 560);
+        g.addColorStop(0, "rgba(169,113,74,0.28)");
+        g.addColorStop(1, "rgba(169,113,74,0)");
+        c.fillStyle = g;
+        c.fillRect(0, 0, W, H);
+
+        const ep = fadeUp(p, 0.02, 0.25);
+        text(c, "ROASTED FRESH EVERY WEEK", 80, 168, {
+          size: 14, weight: 700, color: C.accent, spacing: 4, alpha: ep,
+        });
+        c.fillStyle = C.line;
+        c.fillRect(80, 188, 54 * easeOutCubic(fadeUp(p, 0.1, 0.3)), 2);
+
+        const h1 = fadeUp(p, 0.12, 0.4);
+        const dy = (1 - easeOutCubic(h1)) * 26;
+        drawSegs(c, [
+          { t: "The brew that " },
+          { t: "feels", italic: true, color: C.accent },
+        ], 80, 258 + dy, { size: 54, family: FONT.disp, weight: 700, color: C.ink, alpha: h1 });
+        drawSegs(c, [{ t: "like home." }], 80, 322 + dy, {
+          size: 54, family: FONT.disp, weight: 700, color: C.ink, alpha: h1,
+        });
+
+        const sp = fadeUp(p, 0.3, 0.35);
+        text(c, "Small-batch specialty coffee, ethically sourced", 80, 392, {
+          size: 17.5, color: C.inkSoft, alpha: sp,
+        });
+        text(c, "and roasted to order. Every bag is a quiet ritual —", 80, 420, {
+          size: 17.5, color: C.inkSoft, alpha: sp,
+        });
+        text(c, "grind, pour, and let the morning bloom.", 80, 448, {
+          size: 17.5, color: C.inkSoft, alpha: sp,
+        });
+
+        const bp = fadeUp(p, 0.42, 0.3);
+        const pulse = 1 + 0.025 * Math.sin(t * 3.2);
+        c.save();
+        c.translate(80 + 105 * pulse, 520 + 26 * pulse);
+        c.scale(pulse, pulse);
+        c.translate(-(80 + 105), -(520 + 26));
+        c.globalAlpha = bp;
+        pill(c, 80 + 105, 520, "Shop the roast  ▸", { bg: C.accent, color: C.cream, size: 16, h: 52 });
+        c.restore();
+
+        // photo
+        const pp = easeOutCubic(fadeUp(p, 0.16, 0.4));
+        c.save();
+        c.globalAlpha = pp;
+        c.translate(940, 315);
+        c.scale(0.94 + 0.06 * pp, 0.94 + 0.06 * pp);
+        c.translate(-940, -315);
+        photoFrame(c, CROPS.hero, 700, 150, 480, 330, {
+          scale: 1.02 + 0.07 * easeInOutCubic(p),
+          ox: -0.05 + 0.1 * easeInOutCubic(p),
+        });
+        c.restore();
+
+        // stats
+        const st = fadeUp(p, 0.55, 0.35);
+        const stats = [
+          ["12+", "single-origins"],
+          ["48 h", "roast to door"],
+          ["4.9★", "from 2,300 reviews"],
+        ];
+        stats.forEach((s, i) => {
+          const a = fadeUp(p, 0.55 + i * 0.08, 0.3);
+          text(c, s[0], 80 + i * 240, 640, {
+            size: 34, family: FONT.disp, weight: 700, color: C.accentDark, alpha: a,
+          });
+          text(c, s[1], 80 + i * 240, 666, { size: 14, color: C.inkSoft, alpha: a });
+        });
+      }
+
+      // -- 3. why us
+      function sceneWhy(c, p, t) {
+        const g = c.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, "#2b1c11");
+        g.addColorStop(1, "#180f09");
+        c.fillStyle = g;
+        c.fillRect(0, 0, W, H);
+        const rg = c.createRadialGradient(W * 0.85, H * 0.1, 20, W * 0.85, H * 0.1, 520);
+        rg.addColorStop(0, "rgba(169,113,74,0.22)");
+        rg.addColorStop(1, "rgba(169,113,74,0)");
+        c.fillStyle = rg;
+        c.fillRect(0, 0, W, H);
+
+        const pp = easeOutCubic(fadeUp(p, 0.05, 0.35));
+        c.save();
+        c.globalAlpha = pp;
+        photoFrame(c, CROPS.why, 90, 150, 500, 375, {
+          scale: 1.03 + 0.08 * easeInOutCubic(p),
+          oy: -0.05 + 0.1 * easeInOutCubic(p),
+        });
+        c.restore();
+
+        const x = 660;
+        const ep = fadeUp(p, 0.1, 0.3);
+        text(c, "WHY BREW & BLOOM", x, 176, { size: 14, weight: 700, color: C.gold, spacing: 4, alpha: ep });
+
+        const hp = fadeUp(p, 0.2, 0.4);
+        drawSegs(c, [{ t: "Chosen for one thing:" }], x, 238 + (1 - easeOutCubic(hp)) * 24, {
+          size: 46, family: FONT.disp, weight: 700, color: C.cream, alpha: hp,
+        });
+        drawSegs(c, [{ t: "a better cup of coffee." }], x, 292 + (1 - easeOutCubic(hp)) * 24, {
+          size: 46, family: FONT.disp, weight: 700, color: C.gold, alpha: hp,
+        });
+
+        const feats = [
+          ["🌱", "Ethically sourced", "We pay 30% above fair-trade to family farms."],
+          ["⏱️", "Fresh to order", "Roasted the day you order, shipped in 48 hours."],
+          ["🏆", "Guaranteed great", "Not your cup? We replace it or refund you."],
+        ];
+        feats.forEach((f, i) => {
+          const a = fadeUp(p, 0.4 + i * 0.12, 0.35);
+          const y = 372 + i * 62 + (1 - easeOutCubic(a)) * 18;
+          c.save();
+          c.globalAlpha = a;
+          c.beginPath();
+          c.arc(x + 24, y - 6, 22, 0, Math.PI * 2);
+          c.fillStyle = "rgba(255,250,242,0.08)";
+          c.fill();
+          c.font = "22px " + FONT.body;
+          c.textAlign = "center";
+          c.textBaseline = "middle";
+          c.fillText(f[0], x + 24, y - 4);
+          text(c, f[1], x + 60, y - 12, { size: 18, weight: 700, color: C.cream, alpha: a });
+          text(c, f[2], x + 60, y + 12, { size: 14.5, color: "rgba(255,250,242,0.62)", alpha: a });
+          c.restore();
+        });
+
+        // stats band
+        const ba = fadeUp(p, 0.72, 0.3);
+        c.save();
+        c.globalAlpha = ba;
+        roundRectPath(c, 90, 600, 1100, 84, 18);
+        c.fillStyle = "rgba(255,250,242,0.05)";
+        c.fill();
+        const band = [
+          ["12+", "single-origin coffees"],
+          ["48 h", "roast to your door"],
+          ["30%", "above fair-trade"],
+          ["4.9★", "2,300+ reviews"],
+        ];
+        band.forEach((s, i) => {
+          const cx = 90 + 1100 * (i + 0.5) / 4;
+          text(c, s[0], cx, 636, { size: 26, family: FONT.disp, weight: 700, color: C.gold, align: "center", alpha: ba });
+          text(c, s[1], cx, 662, { size: 13, color: "rgba(255,250,242,0.6)", align: "center", alpha: ba });
+        });
+        c.restore();
+      }
+
+      // -- 4. menu
+      function sceneMenu(c, p, t) {
+        c.fillStyle = C.bg;
+        c.fillRect(0, 0, W, H);
+        const g = c.createRadialGradient(W / 2, -40, 20, W / 2, -40, 620);
+        g.addColorStop(0, "rgba(169,113,74,0.22)");
+        g.addColorStop(1, "rgba(169,113,74,0)");
+        c.fillStyle = g;
+        c.fillRect(0, 0, W, H);
+
+        const ep = fadeUp(p, 0.02, 0.25);
+        text(c, "THE MENU", W / 2, 108, { size: 14, weight: 700, color: C.accent, align: "center", spacing: 5, alpha: ep });
+        const hp = fadeUp(p, 0.1, 0.35);
+        text(c, "This season's lineup", W / 2, 158 + (1 - easeOutCubic(hp)) * 22, {
+          size: 44, family: FONT.disp, weight: 700, color: C.ink, align: "center", alpha: hp,
+        });
+        const sp = fadeUp(p, 0.24, 0.3);
+        text(c, "Every bag roasted the day you order it.", W / 2, 192, {
+          size: 16, color: C.inkSoft, align: "center", alpha: sp,
+        });
+
+        const pp = easeOutCubic(fadeUp(p, 0.16, 0.4));
+        c.save();
+        c.globalAlpha = pp;
+        photoFrame(c, CROPS.menu, 390, 222, 500, 410, {
+          scale: 1.0 + 0.03 * easeInOutCubic(p),
+          oy: 0.04 - 0.08 * easeInOutCubic(p),
+        });
+        c.restore();
+
+        const items = [
+          ["Sunrise Blend", "$14"],
+          ["Midnight Roast", "$15"],
+          ["Ethiopia Yirgacheffe", "$18"],
+          ["Colombia Decaf", "$15"],
+        ];
+        items.forEach((it, i) => {
+          const a = fadeUp(p, 0.42 + i * 0.09, 0.3);
+          const y = 662 + (1 - easeOutCubic(a)) * 16;
+          c.save();
+          c.globalAlpha = a;
+          const w = pill(c, 180 + i * 240, y, it[0], {
+            bg: C.cream, color: C.ink, right: it[1], rightColor: C.accent,
+            border: C.line, size: 14, h: 42,
+          });
+          c.restore();
+        });
+      }
+
+      // -- 5. story
+      function sceneStory(c, p, t) {
+        const g = c.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, "#241709");
+        g.addColorStop(1, "#120b06");
+        c.fillStyle = g;
+        c.fillRect(0, 0, W, H);
+        const rg = c.createRadialGradient(W * 0.2, H * 0.2, 20, W * 0.2, H * 0.2, 520);
+        rg.addColorStop(0, "rgba(169,113,74,0.18)");
+        rg.addColorStop(1, "rgba(169,113,74,0)");
+        c.fillStyle = rg;
+        c.fillRect(0, 0, W, H);
+
+        const pp = easeOutCubic(fadeUp(p, 0.05, 0.35));
+        c.save();
+        c.globalAlpha = pp;
+        photoFrame(c, CROPS.story, 100, 80, 380, 560, {
+          scale: 1.03 + 0.07 * easeInOutCubic(p),
+          oy: -0.04 + 0.08 * easeInOutCubic(p),
+          radius: 26,
+        });
+        c.restore();
+
+        const x = 560;
+        const ep = fadeUp(p, 0.1, 0.3);
+        text(c, "OUR STORY", x, 150, { size: 14, weight: 700, color: C.gold, spacing: 4, alpha: ep });
+
+        const hp = fadeUp(p, 0.2, 0.4);
+        drawSegs(c, [{ t: "It started with one" }], x, 214 + (1 - easeOutCubic(hp)) * 24, {
+          size: 44, family: FONT.disp, weight: 700, color: C.cream, alpha: hp,
+        });
+        drawSegs(c, [{ t: "imperfect cup." }], x, 268 + (1 - easeOutCubic(hp)) * 24, {
+          size: 44, family: FONT.disp, weight: 700, color: C.cream, alpha: hp,
+        });
+
+        const sp = fadeUp(p, 0.36, 0.35);
+        text(c, "From a one-car garage in 2018 to a sunlit roastery —", x, 336, { size: 17.5, color: "rgba(255,250,242,0.72)", alpha: sp });
+        text(c, "still roasted by hand, still small-batch.", x, 364, { size: 17.5, color: "rgba(255,250,242,0.72)", alpha: sp });
+
+        // timeline
+        const years = [
+          ["2018", "garage roaster"],
+          ["2019", "direct trade"],
+          ["2021", "Coffee Club"],
+          ["2024", "own roastery"],
+          ["2026", "12 origins"],
+        ];
+        const tp = fadeUp(p, 0.5, 0.4);
+        c.save();
+        c.globalAlpha = tp;
+        c.strokeStyle = "rgba(217,164,106,0.4)";
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(x, 470);
+        c.lineTo(x + 560, 470);
+        c.stroke();
+        years.forEach((y, i) => {
+          const a = fadeUp(p, 0.52 + i * 0.07, 0.3);
+          const cx = x + 20 + i * 130;
+          c.globalAlpha = a;
+          c.fillStyle = C.gold;
+          c.beginPath();
+          c.arc(cx, 470, 5, 0, Math.PI * 2);
+          c.fill();
+          text(c, y[0], cx + 14, 466, { size: 19, family: FONT.disp, weight: 700, color: C.gold, alpha: a });
+          text(c, y[1], cx + 14, 490, { size: 13, color: "rgba(255,250,242,0.6)", alpha: a });
+        });
+        c.restore();
+      }
+
+      // -- 6. proof
+      function sceneProof(c, p, t) {
+        c.fillStyle = C.bgSoft;
+        c.fillRect(0, 0, W, H);
+        const g = c.createRadialGradient(W / 2, H * 0.3, 20, W / 2, H * 0.3, 620);
+        g.addColorStop(0, "rgba(169,113,74,0.25)");
+        g.addColorStop(1, "rgba(169,113,74,0)");
+        c.fillStyle = g;
+        c.fillRect(0, 0, W, H);
+
+        const st = fadeUp(p, 0.05, 0.3);
+        text(c, "★ ★ ★ ★ ★", W / 2, 176, { size: 34, color: "#9c7a3c", align: "center", spacing: 6, alpha: st });
+
+        const qp = fadeUp(p, 0.18, 0.4);
+        const quote = [
+          ["“The Yirgacheffe is genuinely the best"],
+          ["pour-over I’ve had outside a specialty café.”"],
+        ];
+        quote.forEach((line, i) => {
+          text(c, line[0], W / 2, 286 + i * 58 + (1 - easeOutCubic(qp)) * 24, {
+            size: 40, family: FONT.disp, weight: 500, italic: true, color: C.ink, align: "center", alpha: qp,
+          });
+        });
+
+        const ap = fadeUp(p, 0.48, 0.3);
+        text(c, "Maya Reyes", W / 2, 446, { size: 18, weight: 700, color: C.ink, align: "center", alpha: ap });
+        text(c, "Home barista · Portland", W / 2, 472, { size: 14, color: C.inkSoft, align: "center", alpha: ap });
+
+        const cp = fadeUp(p, 0.62, 0.3);
+        c.save();
+        c.globalAlpha = cp;
+        pill(c, W / 2, 536, "4.9 out of 5", { bg: C.ink, color: C.cream, right: "2,300+ reviews", rightColor: C.gold, size: 15, h: 48 });
+        c.restore();
+      }
+
+      // -- 7. offer / end card
+      function sceneOffer(c, p, t) {
+        const g = c.createLinearGradient(135, C.accentDark, C.accent);
+        c.fillStyle = g;
+        c.fillRect(0, 0, W, H);
+        const rg = c.createRadialGradient(W * 0.12, 0, 40, W * 0.12, 0, 520);
+        rg.addColorStop(0, "rgba(217,164,106,0.35)");
+        rg.addColorStop(1, "rgba(217,164,106,0)");
+        c.fillStyle = rg;
+        c.fillRect(0, 0, W, H);
+
+        const hp = fadeUp(p, 0.06, 0.35);
+        text(c, "Get 15% off your first bag", W / 2, 214 + (1 - easeOutCubic(hp)) * 24, {
+          size: 52, family: FONT.disp, weight: 700, color: C.cream, align: "center", alpha: hp,
+        });
+        const sp = fadeUp(p, 0.2, 0.3);
+        text(c, "Join the bloom — seasonal roasts, brewing guides,", W / 2, 278, {
+          size: 18, color: "rgba(255,250,242,0.85)", align: "center", alpha: sp,
+        });
+        text(c, "and subscriber-only deals. No spam, ever.", W / 2, 306, {
+          size: 18, color: "rgba(255,250,242,0.85)", align: "center", alpha: sp,
+        });
+
+        const bp = fadeUp(p, 0.34, 0.3);
+        const pulse = 1 + 0.03 * Math.sin(t * 3);
+        c.save();
+        c.globalAlpha = bp;
+        c.translate(W / 2, 392);
+        c.scale(pulse, pulse);
+        c.translate(-W / 2, -392);
+        pill(c, W / 2, 392, "Shop the roast  ▸", { bg: C.cream, color: C.accentDark, size: 17, h: 58 });
+        c.restore();
+
+        const up = fadeUp(p, 0.5, 0.3);
+        text(c, "brewandbloom.com", W / 2, 470, {
+          size: 16, weight: 600, color: C.gold, align: "center", spacing: 2, alpha: up,
+        });
+
+        // end card
+        const ep = fadeUp(p, 0.66, 0.3);
+        c.save();
+        c.globalAlpha = ep;
+        drawLogoMark(c, W / 2, 570, 34, ep);
+        text(c, "Brew & Bloom", W / 2, 636, {
+          size: 26, family: FONT.disp, weight: 700, color: C.cream, align: "center", alpha: ep,
+        });
+        text(c, "ROASTED WITH CARE · DRINK BLOOM", W / 2, 664, {
+          size: 11, weight: 600, color: "rgba(255,250,242,0.6)", align: "center", spacing: 4, alpha: ep,
+        });
+        c.restore();
+      }
+
+      // -- 8. credit (Saad Ahmed Khan)
+      function sceneCredit(c, p, t) {
+        c.fillStyle = C.bg;
+        c.fillRect(0, 0, W, H);
+        const g = c.createRadialGradient(W / 2, H * 0.44, 40, W / 2, H * 0.44, 620);
+        g.addColorStop(0, "rgba(169,113,74,0.22)");
+        g.addColorStop(1, "rgba(169,113,74,0)");
+        c.fillStyle = g;
+        c.fillRect(0, 0, W, H);
+
+        const ep = fadeUp(p, 0.05, 0.3);
+        text(c, "C R E D I T S", W / 2, 132, {
+          size: 14, weight: 700, color: C.accent, align: "center", spacing: 5, alpha: ep,
+        });
+
+        const pp = easeOutCubic(fadeUp(p, 0.12, 0.4));
+        const w = 560 * (0.94 + 0.06 * pp);
+        const h = 330 * (0.94 + 0.06 * pp);
+        c.save();
+        c.globalAlpha = pp;
+        photoFrame(c, CROPS.saad, W / 2 - w / 2, 205 + (330 - h) / 2, w, h, {
+          scale: 1.0 + 0.04 * easeInOutCubic(p),
+          radius: 26,
+        });
+        c.restore();
+
+        const cp = fadeUp(p, 0.4, 0.3);
+        text(c, "Saad Ahmed Khan", W / 2, 612, {
+          size: 26, family: FONT.disp, weight: 700, color: C.ink, align: "center", alpha: cp,
+        });
+        text(c, "VIDEO EDITING", W / 2, 642, {
+          size: 13, weight: 600, color: C.inkSoft, align: "center", spacing: 4, alpha: cp,
+        });
+      }
+
+      // -- 9. coming soon
+      function sceneSoon(c, p, t) {
+        const img = IMG.soon;
+        let bg = "#f7f2e8";
+        if (img) {
+          const cc = document.createElement("canvas");
+          cc.width = cc.height = 1;
+          const cx = cc.getContext("2d");
+          cx.drawImage(img, 0, 0, 16, 16, 0, 0, 1, 1);
+          const d = cx.getImageData(0, 0, 1, 1).data;
+          bg = "rgb(" + d[0] + "," + d[1] + "," + d[2] + ")";
+        }
+        c.fillStyle = bg;
+        c.fillRect(0, 0, W, H);
+        if (!img) return;
+        const pp = easeOutCubic(fadeUp(p, 0.03, 0.3));
+        c.save();
+        c.globalAlpha = pp;
+        const iw = img.naturalWidth || 2048;
+        const ih = img.naturalHeight || 2048;
+        const scale = Math.min(W / iw, H / ih) * (1 + 0.05 * easeInOutCubic(p));
+        const w = iw * scale;
+        const h = ih * scale;
+        c.drawImage(img, 0, 0, iw, ih, (W - w) / 2, (H - h) / 2, w, h);
+        c.restore();
+      }
+
+      // ------------------------------------------------------------ overlays
+      const noise = document.createElement("canvas");
+      noise.width = noise.height = 140;
+      (function makeNoise() {
+        const n = noise.getContext("2d");
+        const id = n.createImageData(140, 140);
+        for (let i = 0; i < id.data.length; i += 4) {
+          const v = Math.random() * 255;
+          id.data[i] = id.data[i + 1] = id.data[i + 2] = v;
+          id.data[i + 3] = 255;
+        }
+        n.putImageData(id, 0, 0);
+      })();
+
+      function drawOverlay(c, time) {
+        // vignette
+        const vg = c.createRadialGradient(W / 2, H / 2, H * 0.42, W / 2, H / 2, H * 0.98);
+        vg.addColorStop(0, "rgba(0,0,0,0)");
+        vg.addColorStop(1, "rgba(0,0,0,0.3)");
+        c.fillStyle = vg;
+        c.fillRect(0, 0, W, H);
+
+        // film grain
+        c.save();
+        c.globalAlpha = 0.045;
+        const ox = Math.floor(Math.random() * 140);
+        const oy = Math.floor(Math.random() * 140);
+        for (let x = -ox; x < W; x += 140) for (let y = -oy; y < H; y += 140) c.drawImage(noise, x, y);
+        c.restore();
+
+        // progress bar
+        c.fillStyle = "rgba(255,255,255,0.14)";
+        c.fillRect(0, H - 4, W, 4);
+        c.fillStyle = C.gold;
+        c.fillRect(0, H - 4, W * clamp(time / DURATION), 4);
+        c.fillStyle = "rgba(0,0,0,0.35)";
+        for (let i = 1; i < SCENES.length; i++) {
+          const x = (SCENES[i].t0 / DURATION) * W;
+          c.fillRect(x, H - 4, 1, 4);
+        }
+
+        // watermark
+        c.save();
+        c.globalAlpha = 0.5;
+        drawLogoMark(c, W - 44, 40, 15, 0.5);
+        c.restore();
+      }
+
+      // ------------------------------------------------------------- render
+      function render(time) {
+        const i = sceneIndexAt(time);
+        const s = SCENES[i];
+        const p = clamp((time - s.t0) / (s.t1 - s.t0));
+        ctxA.clearRect(0, 0, W, H);
+        s.draw(ctxA, p, time);
+
+        const remain = s.t1 - time;
+        ctx.clearRect(0, 0, W, H);
+        if (remain < FADE && i + 1 < SCENES.length) {
+          const k = easeInOutCubic(1 - remain / FADE);
+          const ns = SCENES[i + 1];
+          const np = clamp((time - ns.t0) / (ns.t1 - ns.t0));
+          ctxB.clearRect(0, 0, W, H);
+          ns.draw(ctxB, np, time);
+          ctx.drawImage(offA, 0, 0);
+          ctx.save();
+          ctx.globalAlpha = k;
+          ctx.drawImage(offB, 0, 0);
+          ctx.restore();
+        } else {
+          ctx.drawImage(offA, 0, 0);
+        }
+        drawOverlay(ctx, time);
+      }
+
+      // ------------------------------------------------------------ playback
+      let current = 0;
+      let playing = false;
+      let last = 0;
+      let ready = false;
+      let endResolver = null;
+      let exporting = false;
+      let musicOn = true;
+
+      const loader = document.getElementById("loader");
+      const startCard = document.getElementById("startCard");
+      const exportCard = document.getElementById("exportCard");
+      const statusEl = document.getElementById("status");
+      const playBtn = document.getElementById("playBtn");
+      const muteBtn = document.getElementById("muteBtn");
+      const exportBtn = document.getElementById("exportBtn");
+
+      function setStatus(s) { statusEl.textContent = s; }
+
+      function loop(now) {
+        if (!playing) return;
+        const dt = Math.min(0.1, (now - last) / 1000);
+        last = now;
+        current = Math.min(DURATION, current + dt);
+        render(current);
+        setStatus("Playing…  " + current.toFixed(1) + "s / " + DURATION + "s");
+        if (current >= DURATION) {
+          playing = false;
+          playBtn.textContent = "▶ Play";
+          setStatus("Finished.");
+          if (endResolver) { const r = endResolver; endResolver = null; r(); }
+          return;
+        }
+        requestAnimationFrame(loop);
+      }
+
+      function play() {
+        if (!ready || playing || exporting) return;
+        if (current >= DURATION) current = 0;
+        playing = true;
+        last = performance.now();
+        playBtn.textContent = "⏸ Pause";
+        setStatus("Playing…  " + current.toFixed(1) + "s / " + DURATION + "s");
+        requestAnimationFrame(loop);
+        startAudio();
+      }
+
+      function pause() {
+        playing = false;
+        playBtn.textContent = "▶ Play";
+        setStatus("Paused at " + current.toFixed(1) + "s");
+      }
+
+      function replay() {
+        current = 0;
+        render(0);
+        play();
+      }
+
+      function togglePlay() { playing ? pause() : play(); }
+
+      // --------------------------------------------------------------- audio
+      let audioCtx = null;
+      let musicDest = null;
+      let musicNodes = [];
+
+      function startAudio() {
+        if (!musicOn) return;
+        if (!audioCtx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return;
+          audioCtx = new AC();
+          musicDest = audioCtx.createMediaStreamDestination();
+        }
+        audioCtx.resume();
+      }
+
+      function buildMusic(ac, dest, duration) {
+        const master = ac.createGain();
+        master.gain.value = 0;
+        master.connect(dest);
+        const t0 = ac.currentTime + 0.05;
+        master.gain.setValueAtTime(0, t0);
+        master.gain.linearRampToValueAtTime(0.2, t0 + 1.6);
+        master.gain.setValueAtTime(0.2, t0 + duration - 2);
+        master.gain.linearRampToValueAtTime(0, t0 + duration);
+
+        const lp = ac.createBiquadFilter();
+        lp.type = "lowpass";
+        lp.frequency.value = 820;
+        lp.connect(master);
+
+        const chords = [
+          [130.81, 164.81, 196.0, 246.94],
+          [110.0, 130.81, 164.81, 196.0],
+          [87.31, 110.0, 130.81, 164.81],
+          [98.0, 123.47, 146.83, 164.81],
+        ];
+        const beat = 60 / 72;
+        const barLen = beat * 4;
+        let t = t0;
+        let ci = 0;
+        while (t < t0 + duration) {
+          const ch = chords[ci % chords.length];
+          ch.forEach((f, i) => {
+            const o = ac.createOscillator();
+            o.type = i < 2 ? "sine" : "triangle";
+            o.frequency.value = f;
+            const g = ac.createGain();
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.045, t + 0.9);
+            g.gain.setValueAtTime(0.045, t + barLen - 1.2);
+            g.gain.linearRampToValueAtTime(0, t + barLen);
+            o.connect(g);
+            g.connect(lp);
+            o.start(t);
+            o.stop(t + barLen + 0.1);
+            musicNodes.push(o);
+          });
+          t += barLen;
+          ci++;
+        }
+
+        const scale = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25];
+        let mt = t0 + 0.6;
+        while (mt < t0 + duration - 0.6) {
+          const f = scale[Math.floor(Math.random() * scale.length)];
+          const o = ac.createOscillator();
+          o.type = "triangle";
+          o.frequency.value = f;
+          const g = ac.createGain();
+          g.gain.setValueAtTime(0, mt);
+          g.gain.linearRampToValueAtTime(0.035, mt + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, mt + 0.7);
+          o.connect(g);
+          g.connect(master);
+          o.start(mt);
+          o.stop(mt + 0.8);
+          musicNodes.push(o);
+          mt += 0.42 + Math.random() * 0.22;
+        }
+        return master;
+      }
+
+      // -------------------------------------------------------------- export
+      function downloadBlob(blob, name) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          a.remove();
+        }, 1000);
+      }
+
+      async function exportVideo() {
+        if (!ready || exporting) return;
+        if (!("MediaRecorder" in window)) {
+          setStatus("MediaRecorder isn't supported in this browser.");
+          return;
+        }
+        exporting = true;
+        exportBtn.disabled = true;
+        playBtn.disabled = true;
+        exportCard.classList.remove("hidden");
+        document.getElementById("exportTitle").textContent = "Exporting…";
+        document.getElementById("exportMsg").textContent =
+          "Recording the commercial in real time (" + DURATION + "s). Keep this tab visible.";
+
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          let dest = null;
+          let master = null;
+          if (musicOn && AC) {
+            try {
+              if (!audioCtx) {
+                audioCtx = new AC();
+                musicDest = audioCtx.createMediaStreamDestination();
+              }
+              // never block the export on audio: give resume() a short window
+              await Promise.race([
+                audioCtx.resume(),
+                new Promise((res) => setTimeout(res, 900)),
+              ]);
+              if (audioCtx.state === "running") {
+                dest = musicDest;
+                master = buildMusic(audioCtx, dest, DURATION + 0.2);
+              }
+            } catch (e) {
+              dest = null;
+              master = null;
+            }
+          }
+
+          const stream = canvas.captureStream(30);
+          const tracks = [...stream.getVideoTracks(), ...(dest ? dest.stream.getAudioTracks() : [])];
+          const ms = new MediaStream(tracks);
+          const mime =
+            ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find((m) =>
+              MediaRecorder.isTypeSupported(m)
+            ) || "";
+          const rec = new MediaRecorder(ms, mime ? { mimeType: mime, videoBitsPerSecond: 10000000 } : undefined);
+          const chunks = [];
+          rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+          const stopped = new Promise((res) => (rec.onstop = res));
+
+          current = 0;
+          render(0);
+          const ended = new Promise((res) => (endResolver = res));
+          rec.start(250);
+          playing = true;
+          // drive frames off wall-clock time so the export never stalls
+          const startedAt = performance.now();
+          const timer = setInterval(() => {
+            const tt = Math.min(DURATION, (performance.now() - startedAt) / 1000);
+            current = tt;
+            render(tt);
+            setStatus("Exporting…  " + tt.toFixed(1) + "s / " + DURATION + "s");
+            if (tt >= DURATION) {
+              clearInterval(timer);
+              playing = false;
+              if (endResolver) {
+                const r = endResolver;
+                endResolver = null;
+                r();
+              }
+            }
+          }, 33);
+
+          await ended;
+          rec.stop();
+          await stopped;
+
+          if (master) {
+            try { master.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1); } catch (e) {}
+          }
+          const blob = new Blob(chunks, { type: "video/webm" });
+          const name = "brew-and-bloom-commercial.webm";
+          let saved = false;
+          try {
+            const resp = await fetch("/upload?name=" + encodeURIComponent(name), {
+              method: "POST",
+              body: blob,
+            });
+            if (resp.ok) {
+              const info = await resp.json();
+              setStatus("Saved " + name + " (" + (blob.size / 1048576).toFixed(1) + " MB) → " + info.path);
+              saved = true;
+            }
+          } catch (e) {
+            /* fall back to a normal download below */
+          }
+          if (!saved) {
+            downloadBlob(blob, name);
+            setStatus("Exported " + name + " (" + (blob.size / 1048576).toFixed(1) + " MB)");
+          }
+          exportCard.classList.add("hidden");
+        } catch (err) {
+          setStatus("Export failed: " + err.message);
+          exportCard.classList.add("hidden");
+        } finally {
+          exporting = false;
+          exportBtn.disabled = false;
+          playBtn.disabled = false;
+          current = 0;
+          render(0);
+        }
+      }
+
+      // ---------------------------------------------------------------- init
+      playBtn.addEventListener("click", togglePlay);
+      document.getElementById("replayBtn").addEventListener("click", replay);
+      exportBtn.addEventListener("click", exportVideo);
+      muteBtn.addEventListener("click", () => {
+        musicOn = !musicOn;
+        muteBtn.textContent = musicOn ? "🔊 Sound on" : "🔇 Muted";
+        if (audioCtx && musicDest) {
+          // mute by disconnecting is complex; simply suspend/resume
+          if (musicOn) audioCtx.resume();
+        }
+        setStatus(musicOn ? "Sound on." : "Muted (export will be silent).");
+      });
+      document.getElementById("startBtn").addEventListener("click", () => {
+        startCard.classList.add("hidden");
+        play();
+      });
+
+      canvas.addEventListener("click", (e) => {
+        const r = canvas.getBoundingClientRect();
+        const x = ((e.clientX - r.left) / r.width) * W;
+        const y = ((e.clientY - r.top) / r.height) * H;
+        if (y >= H - 26) {
+          current = clamp(x / W) * DURATION;
+          render(current);
+          setStatus(playing ? "Playing…  " + current.toFixed(1) + "s / " + DURATION + "s" : "Seeked to " + current.toFixed(1) + "s");
+        }
+      });
+
+      window.addEventListener("keydown", (e) => {
+        if (e.code === "Space") { e.preventDefault(); togglePlay(); }
+        else if (e.key === "r" || e.key === "R") replay();
+        else if (e.key === "m" || e.key === "M") muteBtn.click();
+        else if (e.key === "e" || e.key === "E") exportVideo();
+      });
+
+      loadImages()
+        .then(async () => {
+          await document.fonts.ready;
+          ready = true;
+          loader.classList.add("hidden");
+          startCard.classList.remove("hidden");
+          const qt = parseFloat(new URLSearchParams(location.search).get("t"));
+          if (!isNaN(qt)) {
+            current = clamp(qt, 0, DURATION);
+            startCard.classList.add("hidden");
+            setStatus("Seeked to " + current.toFixed(1) + "s");
+          }
+          render(current);
+          setStatus(ready && isNaN(qt) ? "Ready — press play." : "Seeked to " + current.toFixed(1) + "s");
+        })
+        .catch((err) => {
+          loader.querySelector("p").textContent = "Could not load images: " + err.message;
+        });
+    </script>
+  </body>
+</html>

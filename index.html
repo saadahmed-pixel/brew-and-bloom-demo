@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Brew & Bloom — specialty coffee roasted with care. Small-batch beans, delivered fresh to your door." />
+    <title>Brew &amp; Bloom — Specialty Coffee</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Nav -->
+    <header>
+      <div class="container nav">
+        <a class="brand" href="index.html">
+          <span class="brand__mark">☕</span>
+          Brew &amp; Bloom
+        </a>
+        <nav>
+          <ul class="nav__links" id="navLinks">
+            <li><a href="index.html" class="active">Home</a></li>
+            <li><a href="why-us.html">Why us</a></li>
+            <li><a href="story.html">Our story</a></li>
+            <li><a href="menu.html">Menu</a></li>
+            <li><a class="btn" href="menu.html">Order now</a></li>
+          </ul>
+        </nav>
+        <button
+          class="nav__toggle"
+          id="navToggle"
+          type="button"
+          aria-label="Toggle menu"
+          aria-controls="navLinks"
+          aria-expanded="false"
+        >
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero__grid">
+        <div>
+          <span class="hero__badge">Roasted fresh every week</span>
+          <h1>The brew that <em>feels</em> like home.</h1>
+          <p class="lead">
+            Small-batch specialty coffee, ethically sourced and roasted to order.
+            Every bag is a quiet ritual — grind, pour, and let the morning bloom.
+          </p>
+          <div class="hero__cta">
+            <a class="btn" href="menu.html">Shop the roast ▸</a>
+            <a class="btn btn--ghost" href="story.html">Our story</a>
+          </div>
+          <div class="hero__stats">
+            <div>
+              <div class="stat__num">12+</div>
+              <div class="stat__label">single-origins</div>
+            </div>
+            <div>
+              <div class="stat__num">48 h</div>
+              <div class="stat__label">roast to door</div>
+            </div>
+            <div>
+              <div class="stat__num">4.9★</div>
+              <div class="stat__label">from 2,300 reviews</div>
+            </div>
+          </div>
+        </div>
+        <div class="hero__art">
+          <div class="hero__card hero__card--img">
+            <img src="assets/latte.webp" alt="Latte topped with heart latte art" />
+          </div>
+          <div class="hero__card hero__card--tall">
+            <img src="assets/espresso.webp" alt="Rich double espresso shot" />
+          </div>
+          <div class="hero__card--float">
+            <span class="steam"><span></span><span></span><span></span></span>
+            <div>
+              <div class="hero__float-title">Morning Blend</div>
+              <div class="hero__float-sub">House favorite · $14 bag</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features teaser -->
+    <section class="features" id="features">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>Why thousands start their day with us</h2>
+          <p>Every detail — from the farm to the cup — is chosen for one thing: a better cup of coffee.</p>
+        </div>
+        <div class="features__grid">
+          <div class="feature-card reveal">
+            <div class="feature-card__icon">🌱</div>
+            <h3>Ethically sourced</h3>
+            <p>We buy directly from family farms and pay 30% above fair-trade prices, so growers earn what they deserve.</p>
+          </div>
+          <div class="feature-card reveal">
+            <div class="feature-card__icon">⏱️</div>
+            <h3>Fresh to order</h3>
+            <p>We roast the moment you order and ship within 48 hours — never sitting on a warehouse shelf.</p>
+          </div>
+          <div class="feature-card reveal">
+            <div class="feature-card__icon">🏆</div>
+            <h3>Guaranteed great</h3>
+            <p>Not your cup? We'll replace it or refund you, no questions asked. Love it or it's free.</p>
+          </div>
+        </div>
+        <div class="menu__cta reveal">
+          <a class="btn" href="why-us.html">More about why us →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="testimonials" id="reviews">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>Loved by coffee people</h2>
+          <p>Real words from real regulars.</p>
+        </div>
+        <div class="testimonials__grid">
+          <div class="quote-card reveal">
+            <div class="stars">★★★★★</div>
+            <blockquote>"The Yirgacheffe is genuinely the best pour-over I've had outside a specialty café. My morning is ruined anywhere else now."</blockquote>
+            <cite>
+              <span class="avatar">MR</span>
+              <div>Maya Reyes<span>Home barista · Portland</span></div>
+            </cite>
+          </div>
+          <div class="quote-card reveal">
+            <div class="stars">★★★★★</div>
+            <blockquote>"Roasted on Monday, on my porch by Wednesday. You can taste the freshness in every single sip."</blockquote>
+            <cite>
+              <span class="avatar">JO</span>
+              <div>James Okafor<span>Subscriber since 2023</span></div>
+            </cite>
+          </div>
+          <div class="quote-card reveal">
+            <div class="stars">★★★★☆</div>
+            <blockquote>"It's a subscription I actually look forward to. They vary the origins each month — it's like coffee school at home."</blockquote>
+            <cite>
+              <span class="avatar">AL</span>
+              <div>Aisha Lin<span>Office manager · Austin</span></div>
+            </cite>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Newsletter -->
+    <section class="newsletter" id="newsletter">
+      <div class="container">
+        <div class="newsletter__box reveal">
+          <h2>Get 15% off your first bag</h2>
+          <p>Join the bloom — seasonal roasts, brewing guides, and subscriber-only deals. No spam, ever.</p>
+          <form class="newsletter__form" id="newsletterForm">
+            <input type="email" placeholder="you@example.com" aria-label="Email address" required />
+            <button class="btn" type="submit">Get the code</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="container">
+        <a class="brand" href="index.html">
+          <span class="brand__mark">☕</span>
+          Brew &amp; Bloom
+        </a>
+        <ul class="footer__links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="why-us.html">Why us</a></li>
+          <li><a href="story.html">Our story</a></li>
+          <li><a href="menu.html">Menu</a></li>
+        </ul>
+        <p>© 2026 Brew &amp; Bloom Coffee Co. Roasted with care somewhere sunny.</p>
+      </div>
+    </footer>
+
+    <script>
+      const toggle = document.getElementById("navToggle");
+      const links = document.getElementById("navLinks");
+      toggle.addEventListener("click", () => {
+        const open = links.classList.toggle("is-open");
+        toggle.setAttribute("aria-expanded", open);
+      });
+      links.querySelectorAll("a").forEach((a) =>
+        a.addEventListener("click", () => links.classList.remove("is-open"))
+      );
+
+      const newsForm = document.getElementById("newsletterForm");
+      if (newsForm) {
+        newsForm.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const btn = e.target.querySelector("button");
+          btn.textContent = "Check your inbox ☕";
+          btn.disabled = true;
+        });
+      }
+
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("is-visible");
+              io.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.12 }
+      );
+      document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+    </script>
+  </body>
+</html>
