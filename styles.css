@@ -641,6 +641,13 @@
         color: var(--accent);
       }
 
+      footer .footer__demo {
+        margin-top: 12px;
+        font-size: 0.8rem;
+        color: var(--accent);
+        font-weight: 500;
+      }
+
       /* ---------- Reveal animation ---------- */
       .reveal {
         opacity: 0;
