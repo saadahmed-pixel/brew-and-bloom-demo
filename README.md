@@ -1,5 +1,7 @@
 # Brew & Bloom — demo website
 
+**Live demo:** https://saadahmed-pixel.github.io/brew-and-bloom-demo/
+
 A static, responsive 5-page demo site. No build step, no server code, no database — just HTML, CSS, images and a little browser JavaScript.
 
 ## What's in this folder
